@@ -12,26 +12,33 @@ ALLOWED_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 def preprocess_image(img):
 
-    image = Image.open(img)
+    # Load the image
+    image = cv2.imread(img)
 
-    # resizing
-    factor = 1
-    processed = image.resize((int(image.width * factor), int(image.height)), Image.LANCZOS)
+    # 1. Convert to Grayscale
+    processed = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    #Grayscale
-    processed = processed.convert("L")
+    # 2. Resize (Upscale to improve OCR accuracy)
+    scale_percent = 150  # scale by 200%
+    width = int(processed.shape[1] * scale_percent / 100)
+    height = int(processed.shape[0] * scale_percent / 100)
+    processed = cv2.resize(processed, (width, height), interpolation=cv2.INTER_CUBIC)
 
-    #Median Filter
-    # processed = processed.filter(ImageFilter.MinFilter(size=3))
+    # Contrast
+    clahe = cv2.createCLAHE(clipLimit=2, tileGridSize=(8, 8))
+    processed = clahe.apply(processed)
 
-    #Contrast
-    enhancer = ImageEnhance.Contrast(processed)
-    processed = enhancer.enhance(1.5)
+    # 3. Denoise (Optional but helpful)
+    processed = cv2.fastNlMeansDenoising(processed, h=25)
 
-    # Brightness
-    # enhancer = ImageEnhance.Sharpness(image)
-    # image = enhancer.enhance(2)
 
+    # sharpen_kernel = np.array([[ -1, -1, -1],
+    #                           [ -1,  9, -1],
+    #                           [ -1, -1, -1]])
+    # processed = cv2.filter2D(processed, -1, sharpen_kernel)
+
+    blurred = cv2.GaussianBlur(processed, (0, 0), sigmaX=3)
+    processed = cv2.addWeighted(processed, 2.5, blurred, -0.5, 0)
 
     return processed
 
@@ -66,7 +73,7 @@ def draw_letter(text, folder, img, bbox):
 
     draw = ImageDraw.Draw(image)
 
-    font_size = (bbox[2][1] - bbox[0][1])
+    font_size = (bbox[2][1] - bbox[0][1]) * 0.9
     width = font_size/2
     text_position = bbox[0][0] - width, bbox[0][1]
 
@@ -84,7 +91,7 @@ def draw_bbox(img, bbox):
 
     # Define box (left, top, right, bottom)
     box = (bbox[0][0], bbox[0][1], bbox[2][0], bbox[2][1])
-    draw.rectangle(box, outline='red', width=1)
+    draw.rectangle(box, outline='red', width=2)
     image.show()
 
 
@@ -92,13 +99,14 @@ def process_image(folder, path, correcting=False):
     if correcting:
         # Pre-Processing
         processed_image = preprocess_image(folder + path)
+        processed_image = Image.fromarray(processed_image)
         processed_image.save(folder + "processed_" + path, dpi=(300, 300))
 
         # Perform OCR
         data = read_text_from_image(folder + "processed_" + path, 6)
 
         for res in data :
-            # draw_bbox(folder + path, res[0])
+            draw_bbox(folder + "processed_" + path, res[0])
             draw_letter("A", folder, path, res[0])
 
     if not correcting:
@@ -110,12 +118,12 @@ def process_image(folder, path, correcting=False):
 
 if __name__ == "__main__":
 
-    imgs = ["cropped-1.png", "cropped-2.png"]
-    # imgs = [f'cin_{letter}.png' for letter in alphabet]
+    # imgs = ["cropped-2.png", "test_cin2.png"]
+    imgs = [f'cin_{letter}.png' for letter in alphabet]
     # imgs = [f'test{i}.png' for i in range(1,9)]
     # imgs = ["cin2.png", "cin-1.png"]
 
-    folder ="./Recruits/"
+    folder ="./cins/"
 
     # Take 1
     for img in imgs:
