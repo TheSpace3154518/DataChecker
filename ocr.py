@@ -1,9 +1,8 @@
-from io import TextIOBase
 import easyocr
-import pytesseract
-from PIL import Image, ImageEnhance, ImageFilter, ImageFont, ImageDraw
+import time
 import numpy as np
 import cv2
+from PIL import Image, ImageDraw, ImageFont
 
 # ======================= TODO ======================= #
 # Check Doc
@@ -50,7 +49,7 @@ def preprocess_image(img):
     processed = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     # Resize
-    scale_percent = 150  # scale by 200%
+    scale_percent = 100
     width = int(processed.shape[1] * scale_percent / 100)
     height = int(processed.shape[0] * scale_percent / 100)
     processed = cv2.resize(processed, (width, height), interpolation=cv2.INTER_CUBIC)
@@ -70,10 +69,10 @@ def preprocess_image(img):
     return processed
 
 
-def read_text_from_image(image, val):
+def read_text_from_image(image, detail):
 
-    reader = easyocr.Reader(['fr', 'en'], gpu=True)
-    results = reader.readtext(image, allowlist=ALLOWED_CHARS)
+    reader = easyocr.Reader(['en'], gpu=True)
+    results = reader.readtext(image, detail=detail, allowlist=ALLOWED_CHARS)
 
     return results
 
@@ -97,11 +96,11 @@ def process_image(folder, path, correcting=False):
     if correcting:
         # Preprocessing
         processed_image = preprocess_image(folder + path)
-        processed_image = Image.fromarray(processed_image)
-        processed_image.save(folder + "processed_" + path, dpi=(300, 300))
+        cv2.imwrite(folder + "processed_" + img, processed_image)
 
         # Correct Image by adding letter
-        data = read_text_from_image(folder + "processed_" + path, 6)
+        data = read_text_from_image(folder + "processed_" + path, 1)
+
         for res in data :
             # draw_bbox(folder + path, res[0])
             draw_letter("A", folder, "processed_" + path, res[0])
@@ -111,16 +110,15 @@ def process_image(folder, path, correcting=False):
     if not correcting:
 
         # Perform OCR
-        data = read_text_from_image(folder + "corrected_processed_" + path, 6)
-
-        text = [result[1] for result in data]
-        for i, result in enumerate(text):
+        data = read_text_from_image(folder + "corrected_processed_" + path, 0)
+        for i, result in enumerate(data):
             result = result[1:]
             if result[0] == '0' :
                 result = "O" + result[1:]
             elif result[1] == '0' and result[0] == 'D':
                 result = "undefined"
-            text[i] = result
+            data[i] = result
+        text = data
 
 
     return text
@@ -129,21 +127,33 @@ def process_image(folder, path, correcting=False):
 # ======================= Test Program ======================= #
 if __name__ == "__main__":
 
-    imgs = ["cropped-2.png", "test_cin2.png"]
-    # imgs = [f'cin_{letter}.png' for letter in ALPHABET]
+    # imgs = ["cropped-2.png", "test_cin2.png"]
+    imgs = [f'cin_{letter}.png' for letter in ALPHABET]
     # imgs = [f'test{i}.png' for i in range(1,9)]
     # imgs = ["cin2.png", "cin-1.png"]
 
-    folder ="./Recruits/"
+    folder ="./cins/"
 
     for img in imgs:
 
+        start_time = time.time()
+        print("-"*30 + " Processing Image: " + img + "-"*30)
         # Add Correction
-        print("-"*30 + " Correcting Image: " + img + "-"*30)
+        # print("-"*30 + " Correcting Image: " + img + "-"*30)
         results = process_image(folder, img, correcting=True)
-        print(f"Saved at {folder + 'corrected_processed_' + img}")
+        # print(f"Saved at {folder + 'corrected_processed_' + img}")
+
+        step1 = time.time()
+        correction_time = step1 - start_time
 
         # Attempt to read
-        print("-"*30 + " Processing Image: " + img + "-"*30)
         results = process_image(folder, img)
+
+        end_time = time.time()
+        read_time = end_time - step1
+        execution_time = end_time - start_time
+
+        print(f"Corrected in {correction_time:.2f} s")
+        print(f"Read in {read_time:.2f} s")
+        print(f"Total in {execution_time:.2f} s")
         print("\n".join(results))
