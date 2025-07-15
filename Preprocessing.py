@@ -42,9 +42,10 @@ class ImageProcessor:
         if self.grayscale:
             processed = cv2.cvtColor(processed, cv2.COLOR_BGR2GRAY)
 
-        print(processed)
         # Resize
         processed = self.resize_img(processed)
+
+        self.img_show(processed)
 
         # Contrast enhancement
         processed = self.contrast(processed)
@@ -60,14 +61,19 @@ class ImageProcessor:
 
         return processed
 
+    def img_show(self, image):
+        cv2.imshow('Image', image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
     def resize_img(self, image):
         if isinstance(self.resize, str) and self.resize == 'constant':
-            return cv2.resize(image, (700, 450), interpolation=cv2.INTER_CUBIC)
-        else:
+            scale_percent = (700 / image.shape[1]) * 100
+        else :
             scale_percent = self.resize
-            width = int(image.shape[1] * scale_percent / 100)
-            height = int(image.shape[0] * scale_percent / 100)
-            return cv2.resize(image, (width, height), interpolation=cv2.INTER_CUBIC)
+        width = int(image.shape[1] * scale_percent / 100)
+        height = int(image.shape[0] * scale_percent / 100)
+        return cv2.resize(image, (width, height), interpolation=cv2.INTER_CUBIC)
 
     def contrast(self, image):
         if self.contrast_clip_limit <= 0:

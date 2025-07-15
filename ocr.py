@@ -1,6 +1,7 @@
 import easyocr
 import pytesseract
 from util_functions import calculateTime
+from Preprocessing import ImageProcessor
 import numpy as np
 import cv2
 from PIL import Image, ImageDraw, ImageFont
@@ -80,22 +81,6 @@ def read_text_from_image(image, mode="bbox", ALLOWED_CHARS="ABCDEFGHIJKLMNOPQRST
 
 
     img = cv2.imread(image)
-    # h, w = img.shape[:2]
-    # config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=' + ALLOWED_CHARS
-    # boxes = pytesseract.image_to_boxes(img, config=config, lang='eng')
-
-    # boxes = boxes.splitlines()
-    # borders = [[w,h], [0, 0]]
-
-    # print(boxes)
-    # for b in boxes:
-    #     b = b.split()
-    #     x1, y1, x2, y2 = int(b[1]), int(b[2]), int(b[3]), int(b[4])
-    #     y1, y2 = h - y1, h - y2
-    #     borders[0][0] = min(borders[0][0], x1)
-    #     borders[0][1] = min(borders[0][1], y2)
-    #     borders[1][0] = max(borders[1][0], x2)
-    #     borders[1][1] = max(borders[1][1], y1)
 
     reader = easyocr.Reader(['fr', 'en'], gpu=True)
     results = reader.readtext(image, detail=1, allowlist=ALLOWED_CHARS)
@@ -130,7 +115,15 @@ def process_image(folder, path, correcting=False):
     calculateTime()
     if correcting:
         # Preprocessing
-        processed_image = preprocess_image(folder + path)
+        processor = ImageProcessor(
+                resize="constant",
+                grayscale=True,
+                contrast_clip_limit=2,
+                denoise_h=25,
+                sharpness_alpha=2,
+                sharpness_beta=0.5
+            )
+        processed_image = processor.preprocess_image(folder + path)
 
         draw_bbox(processed_image, np.array([[0,0],[1000,1000]], dtype=np.int32))
 

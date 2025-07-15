@@ -207,21 +207,16 @@ def warp_img(folder, input_path):
 
     stretched = cv2.resize(cropped, (int(aspect_ratio * dim[1]), dim[1]), cv2.INTER_CUBIC)
 
-    # factor = 1
-    # stretched = cv2.resize(stretched, (int(dim[0] * factor), int(dim[1] * factor)), cv2.INTER_CUBIC)
-
     cv2.imshow("cropped", stretched)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-    cv2.imwrite(folder + "output_" + input_path, stretched)
-
-    crop_img(folder, "output_" + input_path)
+    return stretched
 
 
 
 if __name__ == '__main__':
     folder="./confidentiels/"
-    imgs = [f"output-{i}.png" for i in range(6, 8)]
+    imgs = [f"output-{i}.png" for i in range(7, 8)]
     for img in imgs:
         warp_img(folder, img)
