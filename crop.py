@@ -82,8 +82,11 @@ def check_model(orig):
 
     return valid, texts[:2]
 
-def crop_img(folder, img):
-    image = cv2.imread(folder + img)
+def crop_img(img):
+    if isinstance(img, str):
+        image = cv2.imread(img)
+    else:
+        image = img.copy()
     valid, texts = check_model(image)
 
     if not valid:
@@ -157,11 +160,13 @@ def crop_img(folder, img):
         x1, y1, x2, y2 = proportion(2/3, 3/4, 1/2, 1/2, W, H)
         draw_bbox(image, np.array([[x1,y1],[x2,y2]], dtype=np.int32))
 
-    orig = orig[y1:y2, x1:x2]
-    cv2.imwrite(folder + "cropped_" + img, orig)
 
-    process_image(folder, "cropped_" + img, correcting=True)
-    results = process_image(folder, "cropped_" + img)
+    # Read CIN
+    orig = orig[y1:y2, x1:x2]
+    corrected = process_image(orig, correcting=True)
+    results = process_image(corrected)
+
+
     print("\n".join(texts))
     print("\n".join(results))
 

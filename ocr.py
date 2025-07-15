@@ -68,35 +68,28 @@ def check_ocr():
 # ======================= Main Program ======================= #
 def read_text_from_image(image, mode="bbox", ALLOWED_CHARS="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\\ \\'"):
 
+    if isinstance(image, str):
+        img = cv2.imread(image)
+    else:
+        img = image
+
     if mode == "text" :
-        if isinstance(image, str):
-            img = Image.open(image)
-        elif isinstance(image, np.ndarray):
-            img = Image.fromarray(image)
-        else:
-            raise TypeError("Unsupported image type")
         config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=' + ALLOWED_CHARS
         results = pytesseract.image_to_string(img, lang='eng+fra', config=config)
         return [results]
 
-
-    img = cv2.imread(image)
-
     reader = easyocr.Reader(['fr', 'en'], gpu=True)
-    results = reader.readtext(image, detail=1, allowlist=ALLOWED_CHARS)
+    results = reader.readtext(img, detail=1, allowlist=ALLOWED_CHARS)
 
     borders = [results[0][0][0], results[0][0][2]]
-    # draw_bbox(img, borders)
-    # print(borders)
-
     return borders
 
 
-def draw_letter(text, folder, img, bbox):
+def draw_letter(text, img, bbox):
     if isinstance(img, str):
-        image = Image.open(folder + img)
+        image = Image.open(img)
     else:
-        image = img
+        image = Image.fromarray(img)
 
     draw = ImageDraw.Draw(image)
     font_size = (bbox[1][1] - bbox[0][1]) * 0.9
@@ -107,13 +100,18 @@ def draw_letter(text, folder, img, bbox):
     font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", font_size)
     draw.text(text_position, text, fill='black', font=font)
 
+    cv_img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
-    image.save(folder + "corrected_" + img)
+    return cv_img
 
 
-def process_image(folder, path, correcting=False):
+def process_image(image, correcting=False):
     calculateTime()
+    if isinstance(image, str):
+        image = cv2.imread(image)
+
     if correcting:
+
         # Preprocessing
         processor = ImageProcessor(
                 resize="constant",
@@ -123,27 +121,23 @@ def process_image(folder, path, correcting=False):
                 sharpness_alpha=2,
                 sharpness_beta=0.5
             )
-        processed_image = processor.preprocess_image(folder + path)
+        processed_image = processor.preprocess_image(image)
 
         draw_bbox(processed_image, np.array([[0,0],[1000,1000]], dtype=np.int32))
 
-        processed_image = Image.fromarray(processed_image)
-        processed_image.save(folder + "processed_" + path, dpi=(300, 300))
 
         # Collect Bounding Box
-        bbox = read_text_from_image(folder + "processed_" + path, ALLOWED_CHARS=CIN_ALLOWED_CHARS)
+        bbox = read_text_from_image(processed_image, ALLOWED_CHARS=CIN_ALLOWED_CHARS)
 
         # Add Letter
-        # draw_bbox(folder + path, bbox)
-        draw_letter("A", folder, "processed_" + path, bbox)
+        corrected = draw_letter("A", processed_image, bbox)
 
-
-        text = "Saved at " + folder + "corrected_processed_" + path
+        return corrected
 
     if not correcting:
 
         # Perform OCR
-        data = read_text_from_image(folder + "corrected_processed_" + path, mode="text", ALLOWED_CHARS=CIN_ALLOWED_CHARS)
+        data = read_text_from_image(image, mode="text", ALLOWED_CHARS=CIN_ALLOWED_CHARS)
         print(data)
         for i, result in enumerate(data):
             result = result[1:]
@@ -152,10 +146,8 @@ def process_image(folder, path, correcting=False):
             elif result[1] == '0' and result[0] == 'D':
                 result = "undefined"
             data[i] = result
-        text = data
+            return data
 
-    print(f"Processing in {calculateTime():.2f}")
-    return text
 
 
 

@@ -27,12 +27,11 @@ aspect_ratio = 1.554123711
 
 # bbox problem                    - Done
 # borders dakhlin                 - Done
+# Refactoring                     - Done
+
+# pdf2img                         - Not yet
 # Text Orientation                - Not yet
 # Blend in with background        - Not yet
-# Refactoring                     - Not yet
-
-# CheckDoc                        - Not yet
-# pdf2img                         - Not yet
 
 def fix_borders(image_path):
 
@@ -188,8 +187,10 @@ def order_points(pts):
 
 
 # Example usage
-def warp_img(folder, input_path):
-    background_fixed = fix_borders(folder + input_path)
+def warp_img(input_path):
+    if isinstance(input_path, str):
+        input_path = cv2.imread(input_path)
+    background_fixed = fix_borders(input_path)
     output, contour = find_largest_contour(background_fixed)
 
     drawContours(output, contour)
