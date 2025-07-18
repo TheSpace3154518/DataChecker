@@ -8,7 +8,7 @@ import os
 
 def read_img(img):
     stretched = warp_img(img)
-    # crop_img(stretched)
+    crop_img(stretched)
 
 
 if __name__ == "__main__":
@@ -20,7 +20,7 @@ if __name__ == "__main__":
     #     read_img(folder + img)
 
     # pdf_files = [f for f in os.listdir(folder) if f.lower().endswith('.pdf')]
-    pdf_files = [f"cin{i}.pdf" for i in range(1, 8)]
+    pdf_files = [f"cin{i}.pdf" for i in range(2, 8)]
 
     for pdf in pdf_files:
         print("-"*30 + f" Processing {pdf} " + "-"*30)

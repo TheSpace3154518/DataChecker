@@ -1,9 +1,38 @@
 from ocr import read_text_from_image, process_image, NAME_ALLOWED_CHARS
 from Preprocessing import ImageProcessor
 from test import detect_text_presence
+import re
 import cv2
 from util_functions import drawContours
 import numpy as np
+
+
+
+def fix_borders(image_path):
+
+    if isinstance(image_path, str):
+        image = cv2.imread(image_path)
+    else:
+        image = image_path
+    orig_height, orig_width = image.shape[:2]
+
+
+    base_colour = image[0][0]
+    scale_factor = 1.25
+    background_height = int(orig_height * scale_factor)
+    background_width = int(orig_width * scale_factor)
+    background = np.ones((background_height, background_width, 3), dtype=np.uint8) * 255
+
+    x = (background_width - orig_width) // 2
+    y = (background_height - orig_height) // 2
+    background[y:y+orig_height, x:x+orig_width] = image
+
+    cv2.imshow('Result', background)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    return background
+
 
 
 def draw_bbox(image, bbox):
@@ -60,7 +89,7 @@ def check_model(orig):
 
     # Check Model Type
     image = orig.copy()
-    x1, y1, x2, y2 = proportion(0, 1/4, 3/8, 5/12, W, H)
+    x1, y1, x2, y2 = proportion(0, 1/4, 2.5/8, 5/12, W, H)
     draw_bbox(image, np.array([[x1,y1],[x2,y2]], dtype=np.int32))
 
     image = image[y1:y2, x1:x2]
@@ -76,7 +105,10 @@ def crop_img(img):
         image = cv2.imread(img)
     else:
         image = img.copy()
+
     valid, kayn_text = check_model(image)
+
+
 
     if not valid:
         print("Not a CIN")
@@ -88,7 +120,7 @@ def crop_img(img):
         # Update Texts
         orig = image.copy()
         H, W = image.shape[:2]
-        x1, y1, x2, y2 = proportion(9/25, 1/5, 1/2, 1/3, W, H)
+        x1, y1, x2, y2 = proportion(8.5/25, 1/5, 1/2, 1/3, W, H)
         orig = orig[y1:y2, x1:x2]
         draw_bbox(image, np.array([[x1,y1],[x2,y2]], dtype=np.int32))
 
@@ -102,6 +134,9 @@ def crop_img(img):
                 sharpness_beta=0.5
             )
         orig = processor.preprocess_image(orig)
+
+
+
         cv2.imshow("output", orig)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
@@ -123,7 +158,7 @@ def crop_img(img):
         # Update Texts
         orig = image.copy()
         H, W = image.shape[:2]
-        x1, y1, x2, y2 = proportion(0, 1/4, 3/8, 5/12, W, H)
+        x1, y1, x2, y2 = proportion(0, 0.75/4, 3/8, 5/12, W, H)
         orig = orig[y1:y2, x1:x2]
         draw_bbox(image, np.array([[x1,y1],[x2,y2]], dtype=np.int32))
 
@@ -147,22 +182,34 @@ def crop_img(img):
         texts = texts[:2]
 
         # Define CIN Zone
-        #
+
         orig = image.copy()
         H, W = image.shape[:2]
-        x1, y1, x2, y2 = proportion(2.1/3, 2.7/4, 1.5/2, 1, W, H)
+        x1, y1, x2, y2 = proportion(2.15/3, 2.7/4, 1.5/2, 1, W, H)
         # x1, y1, x2, y2 = (0, 0, W, H)
         draw_bbox(image, np.array([[x1,y1],[x2,y2]], dtype=np.int32))
 
 
     # Read CIN
     orig = orig[y1:y2, x1:x2]
+
+    orig = fix_borders(orig)
+
     corrected = process_image(orig, correcting=True)
     results = process_image(corrected)
 
 
     print("\n".join(texts))
-    print("\n".join(results))
+
+    # CIN Filtering
+    pattern = r'[A-Za-z]{1,2}[^A-Za-z]{3,9}$'
+    cins = []
+    for result in results :
+        split_result = result.strip().split(" ")
+        cins.extend(split_result)
+    cins = [cin for cin in cins if bool(re.match(pattern, cin))]
+
+    print("\n".join(cins))
 
 
 if __name__ == "__main__":

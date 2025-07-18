@@ -39,31 +39,6 @@ aspect_ratio = 1.554123711
 
 
 
-def fix_borders(image_path):
-
-    if isinstance(image_path, str):
-        image = cv2.imread(image_path)
-    else:
-        image = image_path
-    orig_height, orig_width = image.shape[:2]
-
-
-    base_colour = image[0][0]
-    scale_factor = 1.25
-    background_height = int(orig_height * scale_factor)
-    background_width = int(orig_width * scale_factor)
-    background = np.ones((background_height, background_width, 3), dtype=np.uint8) * base_colour
-
-    x = (background_width - orig_width) // 2
-    y = (background_height - orig_height) // 2
-    background[y:y+orig_height, x:x+orig_width] = image
-
-    cv2.imshow('Result', background)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-    return background
-
 def detect_orientation(image):
     image = preprocess_image(image)
     img = Image.fromarray(image)
@@ -223,48 +198,40 @@ def least_bbox(image):
         return []
 
 
+def get_original_size(bbox, W, H, new_W, new_H):
+    rW = W / float(new_W)
+    rH = H / float(new_H)
+
+    x1 = int(bbox[0][0] * rW)
+    y1 = int(bbox[0][1] * rH)
+    x2 = int(bbox[2][0] * rW)
+    y2 = int(bbox[2][1] * rH)
+
+    return np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype=np.int32)
+
 
 def warp_img(input_path):
     if isinstance(input_path, str):
         input_path = cv2.imread(input_path)
 
-    background_fixed = fix_borders(input_path)
+    # background_fixed = fix_borders(input_path)
     # output, contour = find_largest_contour(background_fixed)
 
     # drawContours(output, contour)
     # drawContours(output, [contour])
 
     # box = np.array(define_borders(contour))
+
     processor = ImageProcessor(
-            resize="constant:1280",
+            resize="constant:1200",
         )
-    contrast_processor = ImageProcessor(
-            contrast_clip_limit=4
-    )
-    output = processor.preprocess_image(background_fixed)
-
-    contrast = contrast_processor.preprocess_image(output)
-    processor.img_show(contrast)
-
-    kernel_sharp = np.array([[0, -1, 0],
-                             [-1, 5,-1],
-                             [0, -1, 0]])
-    contrast = cv2.bilateralFilter(contrast, 9, 50, 50)
-    processor.img_show(contrast)
-
-    contrast = adjust_gamma(contrast, gamma=1.2)
-    processor.img_show(contrast)
-
-    # contrast = cv2.filter2D(contrast, -1, kernel_sharp)
-    # processor.img_show(contrast)
+    output = processor.preprocess_image(input_path)
 
 
-
-    box = least_bbox(contrast)
-
-    drawContours(output, [box], size=100)
-
+    box = least_bbox(output)
+    print("box : ")
     print(box)
+    drawContours(output, [box], size=100)
 
     cropped, dim = crop_card(output, box)
     if dim[0] < dim[1]:

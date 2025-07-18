@@ -9,7 +9,7 @@ def adjust_gamma(image, gamma=1.5):
     return cv2.LUT(image, table)
 
 
-def detect_text_presence(image_path, model_path="./models/frozen_east_text_detection.pb", confidence_threshold=0.5):
+def detect_text_presence(image_path, model_path="./models/frozen_east_text_detection.pb", confidence_threshold=0.3):
     print("detecting...")
     try:
         # Load EAST model
@@ -38,8 +38,14 @@ def detect_text_presence(image_path, model_path="./models/frozen_east_text_detec
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     # Create blob from image
-    blob = cv2.dnn.blobFromImage(image, 1.0, (new_W, new_H),
-                                (123.68, 116.78, 103.94), swapRB=True, crop=False)
+    blob = cv2.dnn.blobFromImage(
+            image,
+            scalefactor=1.0,
+            size=(new_W, new_H),
+            mean=(123.68, 116.78, 103.94),
+            swapRB=True,
+            crop=False
+    )
 
     # Set input and run forward pass
     net.setInput(blob)

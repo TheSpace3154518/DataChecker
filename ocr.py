@@ -93,9 +93,8 @@ def draw_letter(text, img, bbox):
 
     draw = ImageDraw.Draw(image)
     font_size = (bbox[1][1] - bbox[0][1]) * 0.9
-    width = font_size/1.75
-    text_position = int(bbox[0][0] - width), int(bbox[0][1] * 0.95)
-
+    width = font_size/1.6
+    text_position = int(bbox[0][0] - width), bbox[0][1]
 
     font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", font_size)
     draw.text(text_position, text, fill='black', font=font)
@@ -127,11 +126,11 @@ def process_image(image, correcting=False):
             )
         processed_image = processor.preprocess_image(image)
 
-        draw_bbox(processed_image, np.array([[0,0],[1000,1000]], dtype=np.int32))
 
 
         # Collect Bounding Box
         bbox = read_text_from_image(processed_image, ALLOWED_CHARS=CIN_ALLOWED_CHARS)
+        draw_bbox(processed_image.copy(), bbox)
 
         # Add Letter
         corrected = draw_letter("A", processed_image, bbox)
@@ -163,15 +162,15 @@ def process_image(image, correcting=False):
 # ======================= Test Program ======================= #
 if __name__ == "__main__":
 
-    # imgs = ["cropped-2.png"]
-    imgs = [f"cin{i}.png" for i in range(1,8)]
+    imgs = ["cropped-2.png"]
+    # imgs = [f"cin{i}.png" for i in range(1,8)]
     # imgs = [f'cin_{letter}.png' for letter in ALPHABET]
     # imgs = [f'test{i}.png' for i in range(1,9)]
     # imgs = ["cin2.png", "cin-1.png"]
 
-    folder ="./confidentiels/"
+    folder ="./Recruits/"
 
     for img in imgs:
-        process_image(folder, img, correcting=True)
-        results = process_image(folder, img)
+        process_image(folder + img, correcting=True)
+        results = process_image(folder + img)
         print("\n".join(results))
