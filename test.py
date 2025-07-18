@@ -1,139 +1,125 @@
 import cv2
 import numpy as np
-import math
-from Preprocessing import preprocess_image
 
-# def decode_predictions(scores, geometry, scoreThresh):
-#     detections = []
-#     confidences = []
 
-#     height, width = scores.shape[2:4]
+def adjust_gamma(image, gamma=1.5):
+    invGamma = 1.0 / gamma
+    table = np.array([((i / 255.0) ** invGamma) * 255
+                      for i in np.arange(256)]).astype("uint8")
+    return cv2.LUT(image, table)
 
-#     for y in range(0, height):
-#         scoresData = scores[0, 0, y]
-#         x0_data = geometry[0, 0, y]
-#         x1_data = geometry[0, 1, y]
-#         x2_data = geometry[0, 2, y]
-#         x3_data = geometry[0, 3, y]
-#         anglesData = geometry[0, 4, y]
-#         for x in range(0, width):
-#             if scoresData[x] < scoreThresh:
-#                 continue
 
-#             offsetX, offsetY = x * 4.0, y * 4.0
-#             angle = anglesData[x]
-#             cos, sin = np.cos(angle), np.sin(angle)
-#             h = x0_data[x] + x2_data[x]
-#             w = x1_data[x] + x3_data[x]
-#             endX = int(offsetX + cos * x1_data[x] + sin * x2_data[x])
-#             endY = int(offsetY - sin * x1_data[x] + cos * x2_data[x])
-#             startX = int(endX - w)
-#             startY = int(endY - h)
+def detect_text_presence(image_path, model_path="./models/frozen_east_text_detection.pb", confidence_threshold=0.5):
+    print("detecting...")
+    try:
+        # Load EAST model
+        net = cv2.dnn.readNet(model_path)
+    except:
+        return False, None
 
-#             detections.append(((startX, startY, endX, endY), angle))
-#             confidences.append(float(scoresData[x]))
+    # Load image
+    if isinstance(image_path, str):
+        image = cv2.imread(image_path)
+    else :
+        image = image_path
 
-#     return detections, confidences
+    original = image.copy()
+    (H, W) = image.shape[:2]
 
-# # Load image
-# image = cv2.imread('./Recruits/cin2.png')
-# (H, W) = image.shape[:2]
-# orig = image.copy()
+    new_H = (H // 32) * 32 if H % 32 < 16 else ((H // 32) + 1) * 32
+    new_W = (W // 32) * 32 if W % 32 < 16 else ((W // 32) + 1) * 32
+    rW = W / float(new_W)
+    rH = H / float(new_H)
 
-# (H, W) = image.shape[:2]
-# # orig = cv2.resize(orig, (W // 2 , H // 2))
+    # Resize image
+    resized = cv2.resize(image, (new_W, new_H))
 
-# # Resize to multiple of 32
-# newW = (W // 32) * 32
-# newH = (H // 32) * 32
-# rW, rH = W / float(newW), H / float(newH)
-# image = cv2.resize(image, (newW, newH))
+    # Convert to RGB
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-# # Load the EAST model
-# net = cv2.dnn.readNet("./models/frozen_east_text_detection.pb")
+    # Create blob from image
+    blob = cv2.dnn.blobFromImage(image, 1.0, (new_W, new_H),
+                                (123.68, 116.78, 103.94), swapRB=True, crop=False)
 
-# # Create a blob and forward pass
-# blob = cv2.dnn.blobFromImage(image, 1.0, (newW, newH),
-#                              (123.68, 116.78, 103.94), swapRB=True, crop=False)
-# net.setInput(blob)
-# (scores, geometry) = net.forward(["feature_fusion/Conv_7/Sigmoid",
-#                                   "feature_fusion/concat_3"])
+    # Set input and run forward pass
+    net.setInput(blob)
+    (scores, geometry) = net.forward(["feature_fusion/Conv_7/Sigmoid", "feature_fusion/concat_3"])
 
-# # Decode
-# boxes, confidences = decode_predictions(scores, geometry, 0.5)
+    # Decode the predictions
+    rectangles = []
+    confidences = []
 
-# # Draw detections with rotation info
-# for (startX, startY, endX, endY), angle in boxes:
-#     # Scale box back to original size
-#     startX = int(startX * rW)
-#     startY = int(startY * rH)
-#     endX = int(endX * rW)
-#     endY = int(endY * rH)
+    for y in range(0, scores.shape[2]):
+        scores_data = scores[0, 0, y]
+        x_data0 = geometry[0, 0, y]
+        x_data1 = geometry[0, 1, y]
+        x_data2 = geometry[0, 2, y]
+        x_data3 = geometry[0, 3, y]
+        angles_data = geometry[0, 4, y]
 
-#     # Estimate rotation angle in degrees
-#     angle_deg = round(math.degrees(angle), 2)
-#     cv2.rectangle(orig, (startX, startY), (endX, endY), (0, 255, 0), 2)
-#     cv2.putText(orig, f"{angle_deg}°", (startX, startY - 10),
-#                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+        for x in range(0, scores.shape[3]):
+            if scores_data[x] < confidence_threshold:
+                continue
 
-# # Show result
-# cv2.imshow("Text Detection with Orientation", orig)
-# cv2.waitKey(0)
-# cv2.destroyAllWindows()
+            # Calculate offset
+            offset_x = x * 4.0
+            offset_y = y * 4.0
 
-def draw_bbox(image, bbox):
-    cv2.rectangle(image, bbox[0], bbox[1], (0, 0, 255), 1)
-    cv2.imshow("output", image)
+            # Extract rotation angle
+            angle = angles_data[x]
+            cos = np.cos(angle)
+            sin = np.sin(angle)
+
+            # Calculate dimensions
+            h = x_data0[x] + x_data2[x]
+            w = x_data1[x] + x_data3[x]
+
+            # Calculate rotated rectangle
+            end_x = int(offset_x + (cos * x_data1[x]) + (sin * x_data2[x]))
+            end_y = int(offset_y - (sin * x_data1[x]) + (cos * x_data2[x]))
+            start_x = int(end_x - w)
+            start_y = int(end_y - h)
+
+            rectangles.append((start_x, start_y, end_x, end_y))
+            confidences.append(scores_data[x])
+
+    # Apply non-maximum suppression
+    boxes = cv2.dnn.NMSBoxes(rectangles, confidences, confidence_threshold, 0.4)
+
+    # Draw results
+    result_image = original.copy()
+    text_detected = False
+
+    all_rects = []
+
+    if len(boxes) > 0:
+        text_detected = True
+        for i in boxes:
+            # Scale coordinates back to original image
+            x1 = int(rectangles[i][0] * rW)
+            y1 = int(rectangles[i][1] * rH)
+            x2 = int(rectangles[i][2] * rW)
+            y2 = int(rectangles[i][3] * rH)
+
+            cv2.rectangle(result_image, [x1, y1], [x2, y2], (0, 0, 255), 1)
+            all_rects.append([[x1, y1],[x2, y2]])
+
+    print("Detected !!")
+    cv2.imshow("BBOX", result_image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-
-def proportion(r1, r2, r3, r4, W, H):
-    x1, y1 = W * r1, H * r2
-    x2, y2 = x1 + (W - x1) * r3, y1 + (H - y1) * r4
-    return x1, y1, x2, y2
-
-
-def check_model(image):
-
-    # Check Zone
-    x1, y1, x2, y2 = proportion(0, 0, 3/8, 1/5, W, H)
-    draw_bbox(image, np.array([[x1,y1],[x2,y2]], dtype=np.int32))
-
+    return text_detected, np.array(all_rects, dtype=np.int32)
 
 
 if __name__ == "__main__":
+    # Example usage
+    image_path = "./Recruits/cin-1.png"
+    detect_text_presence2(image_path)
 
-    image = cv2.imread('./Recruits/aspct.png')
-    H, W = image.shape[:2]
+    # text_detected, result_image = detect_text_presence(image_path)
 
-
-    # Model 1 (l9dim)
-    # CIN Zone
-    x1, y1, x2, y2 = proportion(2/3, 3/4, 1/2, 1/2, W, H)
-    draw_bbox(image, np.array([[x1,y1],[x2,y2]], dtype=np.int32))
-
-    # Check Zone
-    x1, y1, x2, y2 = proportion(0, 0, 3/8, 1/5, W, H)
-    draw_bbox(image, np.array([[x1,y1],[x2,y2]], dtype=np.int32))
-
-    # Name Zone
-    x1, y1, x2, y2 = proportion(0, 1/4, 3/8, 5/12, W, H)
-    draw_bbox(image, np.array([[x1,y1],[x2,y2]], dtype=np.int32))
-
-
-
-    # Model 2 (jdid)
-    image = cv2.imread('./Recruits/cin2.png')
-    H, W = image.shape[:2]
-    # CIN Zone
-    x1, y1, x2, y2 = proportion(9/95, 6/7, 3/14, 1, W, H)
-    draw_bbox(image, np.array([[x1,y1],[x2,y2]], dtype=np.int32))
-
-    # Check Zone
-    x1, y1, x2, y2 = proportion(0, 0, 3/8, 1/5, W, H)
-    draw_bbox(image, np.array([[x1,y1],[x2,y2]], dtype=np.int32))
-
-    # Name Zone
-    x1, y1, x2, y2 = proportion(9/25, 1/5, 1/3, 1/3, W, H)
-    draw_bbox(image, np.array([[x1,y1],[x2,y2]], dtype=np.int32))
+    # Display result
+    cv2.imshow("Text Detection", result_image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()

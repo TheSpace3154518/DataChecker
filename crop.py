@@ -1,7 +1,8 @@
 from ocr import read_text_from_image, process_image, NAME_ALLOWED_CHARS
 from Preprocessing import ImageProcessor
-from PIL import Image
+from test import detect_text_presence
 import cv2
+from util_functions import drawContours
 import numpy as np
 
 
@@ -31,12 +32,13 @@ def check_model(orig):
     draw_bbox(image, np.array([[0,0],[image.shape[1],image.shape[0]]], dtype=np.int32))
 
     # Read From Check Zone
+
     processor = ImageProcessor(
-            resize="constant",
+            resize="constant:800",
             grayscale=True,
             contrast_clip_limit=2,
             denoise_h=25,
-            sharpness_alpha=2.5,
+            sharpness_alpha=1.5,
             sharpness_beta=0.5
         )
     image = processor.preprocess_image(image)
@@ -63,38 +65,25 @@ def check_model(orig):
 
     image = image[y1:y2, x1:x2]
 
-    processor = ImageProcessor(
-            resize=150,
-            grayscale=True,
-            contrast_clip_limit=2,
-            denoise_h=25,
-            sharpness_alpha=3,
-            sharpness_beta=0.5,
-            dilate_iterations=1
-        )
-    image = processor.preprocess_image(image)
-    cv2.imshow("output", image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    text_presence, rects = detect_text_presence(image)
 
-    results = read_text_from_image(image, mode="text", ALLOWED_CHARS=NAME_ALLOWED_CHARS)
-    texts = [result.strip() for result in results[0].split("\n") if result.strip()]
+    drawContours(image, rects)
 
-    return valid, texts[:2]
+    return valid, text_presence
 
 def crop_img(img):
     if isinstance(img, str):
         image = cv2.imread(img)
     else:
         image = img.copy()
-    valid, texts = check_model(image)
+    valid, kayn_text = check_model(image)
 
     if not valid:
-        raise ValueError("Not CIN")
+        print("Not a CIN")
+        return
 
-    print(texts)
 
-    if len(texts) == 0:
+    if not kayn_text:
 
         # Update Texts
         orig = image.copy()
@@ -103,8 +92,9 @@ def crop_img(img):
         orig = orig[y1:y2, x1:x2]
         draw_bbox(image, np.array([[x1,y1],[x2,y2]], dtype=np.int32))
 
+
         processor = ImageProcessor(
-                resize=150,
+                resize="constant:800",
                 grayscale=True,
                 contrast_clip_limit=2,
                 denoise_h=25,
@@ -124,7 +114,8 @@ def crop_img(img):
 
         orig = image.copy()
         H, W = image.shape[:2]
-        x1, y1, x2, y2 = proportion(9/95, 6/7, 3/14, 1, W, H)
+        x1, y1, x2, y2 = proportion(8/95, 5.5/7, 3/14, 1, W, H)
+        # x1, y1, x2, y2 = (0, 0, W, H)
         draw_bbox(orig, np.array([[x1,y1],[x2,y2]], dtype=np.int32))
 
     else :
@@ -136,8 +127,9 @@ def crop_img(img):
         orig = orig[y1:y2, x1:x2]
         draw_bbox(image, np.array([[x1,y1],[x2,y2]], dtype=np.int32))
 
+
         processor = ImageProcessor(
-                resize=150,
+                resize="constant:800",
                 grayscale=True,
                 contrast_clip_limit=2,
                 denoise_h=25,
@@ -150,6 +142,7 @@ def crop_img(img):
         cv2.destroyAllWindows()
 
         results = read_text_from_image(orig, mode="text", ALLOWED_CHARS=NAME_ALLOWED_CHARS)
+        print(results)
         texts = [result.strip() for result in results[0].split("\n") if result.strip()]
         texts = texts[:2]
 
@@ -157,7 +150,8 @@ def crop_img(img):
         #
         orig = image.copy()
         H, W = image.shape[:2]
-        x1, y1, x2, y2 = proportion(2/3, 3/4, 1/2, 1/2, W, H)
+        x1, y1, x2, y2 = proportion(2.1/3, 2.7/4, 1.5/2, 1, W, H)
+        # x1, y1, x2, y2 = (0, 0, W, H)
         draw_bbox(image, np.array([[x1,y1],[x2,y2]], dtype=np.int32))
 
 
@@ -172,6 +166,7 @@ def crop_img(img):
 
 
 if __name__ == "__main__":
-    folder = "./Recruits/"
-    img = "aspct.png"
-    crop_img(folder, img)
+    folder = "./confidentiels/"
+    imgs = [f"cin-{i}.png" for i in range(1, 10)]
+    for img in imgs:
+        crop_img(folder + img)

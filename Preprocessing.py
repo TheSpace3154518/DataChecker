@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from test import adjust_gamma
 
 class ImageProcessor:
     def __init__(self,
@@ -38,12 +39,14 @@ class ImageProcessor:
         else:
             processed = image.copy()
 
+        # Resize
+        processed = self.resize_img(processed)
+
+
         # Grayscale
         if self.grayscale:
             processed = cv2.cvtColor(processed, cv2.COLOR_BGR2GRAY)
 
-        # Resize
-        processed = self.resize_img(processed)
 
         self.img_show(processed)
 
@@ -67,8 +70,9 @@ class ImageProcessor:
         cv2.destroyAllWindows()
 
     def resize_img(self, image):
-        if isinstance(self.resize, str) and self.resize == 'constant':
-            scale_percent = (700 / image.shape[1]) * 100
+        if isinstance(self.resize, str) and 'constant' in self.resize:
+            target = int(self.resize.split(":")[1])
+            scale_percent = (target / image.shape[1]) * 100
         else :
             scale_percent = self.resize
         width = int(image.shape[1] * scale_percent / 100)
@@ -80,8 +84,21 @@ class ImageProcessor:
             return image
 
         clahe = cv2.createCLAHE(clipLimit=self.contrast_clip_limit,
-                               tileGridSize=self.contrast_tile_size)
-        return clahe.apply(image)
+                            tileGridSize=self.contrast_tile_size)
+
+        print(image.shape)
+        if len(image.shape) == 3:
+            l, a, b = cv2.split(cv2.cvtColor(image, cv2.COLOR_BGR2LAB))
+
+            clahe_l = clahe.apply(l)
+
+            enhanced = cv2.merge([clahe_l, a ,b])
+
+            # Convert back to BGR
+            enhanced = cv2.cvtColor(enhanced, cv2.COLOR_LAB2BGR)
+            return enhanced
+        else :
+            return clahe.apply(image)
 
     def denoise(self, image):
         if self.denoise_h <= 0:

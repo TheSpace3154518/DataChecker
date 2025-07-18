@@ -75,10 +75,10 @@ def read_text_from_image(image, mode="bbox", ALLOWED_CHARS="ABCDEFGHIJKLMNOPQRST
 
     if mode == "text" :
         config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=' + ALLOWED_CHARS
-        results = pytesseract.image_to_string(img, lang='eng+fra', config=config)
+        results = pytesseract.image_to_string(img, lang='eng+fra+ara', config=config)
         return [results]
 
-    reader = easyocr.Reader(['fr', 'en'], gpu=True)
+    reader = easyocr.Reader(lang_list=['fr', 'en'], gpu=True)
     results = reader.readtext(img, detail=1, allowlist=ALLOWED_CHARS)
 
     borders = [results[0][0][0], results[0][0][2]]
@@ -102,6 +102,10 @@ def draw_letter(text, img, bbox):
 
     cv_img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
+    cv2.imshow("Letter", cv_img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
     return cv_img
 
 
@@ -114,7 +118,7 @@ def process_image(image, correcting=False):
 
         # Preprocessing
         processor = ImageProcessor(
-                resize="constant",
+                resize="constant:800",
                 grayscale=True,
                 contrast_clip_limit=2,
                 denoise_h=25,
@@ -138,15 +142,17 @@ def process_image(image, correcting=False):
 
         # Perform OCR
         data = read_text_from_image(image, mode="text", ALLOWED_CHARS=CIN_ALLOWED_CHARS)
+        data = data[0].split("\n")
         print(data)
         for i, result in enumerate(data):
-            result = result[1:]
-            if result[0] == '0' :
-                result = "O" + result[1:]
-            elif result[1] == '0' and result[0] == 'D':
-                result = "undefined"
-            data[i] = result
-            return data
+            if result != '':
+                result = result[1:]
+                if result[0] == '0' :
+                    result = "O" + result[1:]
+                elif len(result) >= 2 and result[1] == '0' and result[0] == 'D':
+                    result = "undefined"
+                data[i] = result
+        return data
 
 
 

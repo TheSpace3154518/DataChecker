@@ -2,7 +2,9 @@ import cv2
 import numpy as np
 from torch import imag
 from crop import crop_img
+from util_functions import drawContours
 from Preprocessing import ImageProcessor
+from test import detect_text_presence, adjust_gamma
 from PIL import Image
 from rembg import remove
 import pytesseract
@@ -28,10 +30,14 @@ aspect_ratio = 1.554123711
 # bbox problem                    - Done
 # borders dakhlin                 - Done
 # Refactoring                     - Done
+# pdf2img                         - Done
 
-# pdf2img                         - Not yet
 # Text Orientation                - Not yet
-# Blend in with background        - Not yet
+# Camscanner                      - Not yet
+# EAST                            - Not yet
+
+
+
 
 def fix_borders(image_path):
 
@@ -71,12 +77,6 @@ def detect_orientation(image):
             print(f"Word: '{text}', Confidence: {conf}")
 
 
-def drawContours(orig, contours):
-    img = orig.copy()
-    cv2.drawContours(img, contours, -1, (0,0, 255), 3)
-    cv2.imshow("Edge detection", img)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
 
 
 def define_borders(contour):
@@ -104,9 +104,11 @@ def find_largest_contour(image):
 
     # Preprocess
     processer = ImageProcessor(
+        grayscale=True,
+        contrast_clip_limit=10,
         canny_blur_kernel=(5, 5),
         canny_low_threshold=30,
-        canny_high_threshold=150,
+        canny_high_threshold=90,
         dilate_kernel_size=(3,3),
         dilate_iterations=1
     )
@@ -116,7 +118,8 @@ def find_largest_contour(image):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-    # Step 3: Find contours
+
+
     contours, _ = cv2.findContours(processed.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     valid_contours = []
@@ -171,6 +174,7 @@ def correct_rotation(img, box):
     pass
 
 def order_points(pts):
+    print(pts)
 
     rect = np.zeros((4, 2), dtype="float32")
 
@@ -185,24 +189,84 @@ def order_points(pts):
     return rect
 
 
+def least_bbox(image):
+    if isinstance(image, str):
+        image = cv2.imread(image)
 
-# Example usage
+    original = image.copy()
+    text_presence, rects = detect_text_presence(original)
+
+    if text_presence:
+        x1 = image.shape[1] + 1
+        y1 = image.shape[0] + 1
+        x2 = 0
+        y2 = 0
+        for rect in rects:
+            x1 = min(x1, rect[0][0])
+            y1 = min(y1, rect[0][1])
+            x2 = max(x2, rect[1][0])
+            y2 = max(y2, rect[1][1])
+
+        scale_factor = 0.01
+        H, W = image.shape[:2]
+        x1 = max(0, x1 - W * scale_factor)
+        y1 = max(0, y1 - H * scale_factor)
+        x2 = min(image.shape[1], x2 + W * scale_factor)
+        y2 = min(image.shape[0], y2 + H * scale_factor)
+
+        # drawContours(image, np.array([[[x1, y1], [x2, y1], [x2, y2], [x1, y2]]], dtype=np.int32), size=100)
+
+        return np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype=np.int32)
+
+    else :
+        print("mal9ina walo")
+        return []
+
+
+
 def warp_img(input_path):
     if isinstance(input_path, str):
         input_path = cv2.imread(input_path)
+
     background_fixed = fix_borders(input_path)
-    output, contour = find_largest_contour(background_fixed)
+    # output, contour = find_largest_contour(background_fixed)
 
-    drawContours(output, contour)
-    drawContours(output, [contour])
+    # drawContours(output, contour)
+    # drawContours(output, [contour])
 
-    box = define_borders(contour)
+    # box = np.array(define_borders(contour))
+    processor = ImageProcessor(
+            resize="constant:1280",
+        )
+    contrast_processor = ImageProcessor(
+            contrast_clip_limit=4
+    )
+    output = processor.preprocess_image(background_fixed)
 
-    drawContours(output, [box])
+    contrast = contrast_processor.preprocess_image(output)
+    processor.img_show(contrast)
 
+    kernel_sharp = np.array([[0, -1, 0],
+                             [-1, 5,-1],
+                             [0, -1, 0]])
+    contrast = cv2.bilateralFilter(contrast, 9, 50, 50)
+    processor.img_show(contrast)
+
+    contrast = adjust_gamma(contrast, gamma=1.2)
+    processor.img_show(contrast)
+
+    # contrast = cv2.filter2D(contrast, -1, kernel_sharp)
+    # processor.img_show(contrast)
+
+
+
+    box = least_bbox(contrast)
+
+    drawContours(output, [box], size=100)
 
     print(box)
-    cropped, dim = crop_card(output,np.array(box))
+
+    cropped, dim = crop_card(output, box)
     if dim[0] < dim[1]:
         cropped = cv2.rotate(cropped, cv2.ROTATE_90_CLOCKWISE)
 
