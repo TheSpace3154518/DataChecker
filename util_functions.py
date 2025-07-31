@@ -21,3 +21,5 @@ def drawContours(orig, contours, size=100):
     cv2.imshow("Edge detection", resized)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+    return resized

@@ -149,7 +149,6 @@ def correct_rotation(img, box):
     pass
 
 def order_points(pts):
-    print(pts)
 
     rect = np.zeros((4, 2), dtype="float32")
 
@@ -168,46 +167,34 @@ def least_bbox(image):
     if isinstance(image, str):
         image = cv2.imread(image)
 
-    original = image.copy()
-    text_presence, rects = detect_text_presence(original)
+    image, text_presence, rects = detect_text_presence(image)
 
     if text_presence:
-        x1 = image.shape[1] + 1
-        y1 = image.shape[0] + 1
-        x2 = 0
-        y2 = 0
-        for rect in rects:
-            x1 = min(x1, rect[0][0])
-            y1 = min(y1, rect[0][1])
-            x2 = max(x2, rect[1][0])
-            y2 = max(y2, rect[1][1])
 
-        scale_factor = 0.01
-        H, W = image.shape[:2]
-        x1 = max(0, x1 - W * scale_factor)
-        y1 = max(0, y1 - H * scale_factor)
-        x2 = min(image.shape[1], x2 + W * scale_factor)
-        y2 = min(image.shape[0], y2 + H * scale_factor)
+        rects = rects.reshape(-1,2)
+        x1 = rects.min(axis=0)[0]
+        y1 = rects.min(axis=0)[1]
+        x2 = rects.max(axis=0)[0]
+        y2 = rects.max(axis=0)[1]
 
-        # drawContours(image, np.array([[[x1, y1], [x2, y1], [x2, y2], [x1, y2]]], dtype=np.int32), size=100)
+        cx = (x1 + x2) / 2
+        cy = (y1 + y2) / 2
 
-        return np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype=np.int32)
+        h = y2 - y1
+        w = x2 - x1
+
+        scale_factor = 1.025
+        big_rect = (cx, cy), (w * scale_factor, h * scale_factor), 0
+        box = np.array(cv2.boxPoints(big_rect), dtype=np.int32)
+
+        return image, box
+
 
     else :
         print("mal9ina walo")
-        return []
+        return [], []
 
 
-def get_original_size(bbox, W, H, new_W, new_H):
-    rW = W / float(new_W)
-    rH = H / float(new_H)
-
-    x1 = int(bbox[0][0] * rW)
-    y1 = int(bbox[0][1] * rH)
-    x2 = int(bbox[2][0] * rW)
-    y2 = int(bbox[2][1] * rH)
-
-    return np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype=np.int32)
 
 
 def warp_img(input_path):
@@ -228,10 +215,9 @@ def warp_img(input_path):
     output = processor.preprocess_image(input_path)
 
 
-    box = least_bbox(output)
-    print("box : ")
-    print(box)
+    output, box = least_bbox(output)
     drawContours(output, [box], size=100)
+
 
     cropped, dim = crop_card(output, box)
     if dim[0] < dim[1]:

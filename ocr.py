@@ -1,5 +1,6 @@
 import easyocr
 import pytesseract
+import re
 from util_functions import calculateTime
 from Preprocessing import ImageProcessor
 import numpy as np
@@ -117,11 +118,11 @@ def process_image(image, correcting=False):
 
         # Preprocessing
         processor = ImageProcessor(
-                resize="constant:800",
+                resize="constant:1200",
                 grayscale=True,
                 contrast_clip_limit=2,
-                denoise_h=25,
-                sharpness_alpha=2,
+                denoise_h=10,
+                sharpness_alpha=1.5,
                 sharpness_beta=0.5
             )
         processed_image = processor.preprocess_image(image)
@@ -130,6 +131,21 @@ def process_image(image, correcting=False):
 
         # Collect Bounding Box
         bbox = read_text_from_image(processed_image, ALLOWED_CHARS=CIN_ALLOWED_CHARS)
+
+        x1, y1, x2, y2 = bbox[0][0], bbox[0][1], bbox[1][0], bbox[1][1]
+
+        background_height = processed_image.shape[0]
+        background_width = processed_image.shape[1]
+        background = np.ones((background_height, background_width), dtype=np.uint8) * 255
+
+
+        processed_image = processed_image[y1:y2, x1:x2]
+        background[y1:y2, x1:x2] = processed_image
+
+        processed_image = background
+
+
+
         draw_bbox(processed_image.copy(), bbox)
 
         # Add Letter
@@ -144,11 +160,11 @@ def process_image(image, correcting=False):
         data = data[0].split("\n")
         print(data)
         for i, result in enumerate(data):
-            if result != '':
+            if result.strip() and len(result) >= 3:
                 result = result[1:]
                 if result[0] == '0' :
                     result = "O" + result[1:]
-                elif len(result) >= 2 and result[1] == '0' and result[0] == 'D':
+                elif result[1] == '0' and result[0] == 'D':
                     result = "undefined"
                 data[i] = result
         return data
@@ -162,15 +178,44 @@ def process_image(image, correcting=False):
 # ======================= Test Program ======================= #
 if __name__ == "__main__":
 
-    imgs = ["cropped-2.png"]
+    folder ="./confidentiels/"
+
+
+    # imgs = ["rotated_nishan.jpeg", "rotated_shwiya.jpeg", "warped.jpeg", "rotated_bzaf.jpeg"]
     # imgs = [f"cin{i}.png" for i in range(1,8)]
     # imgs = [f'cin_{letter}.png' for letter in ALPHABET]
     # imgs = [f'test{i}.png' for i in range(1,9)]
     # imgs = ["cin2.png", "cin-1.png"]
 
-    folder ="./Recruits/"
+    # for img in imgs:
+    #     cv_img = cv2.imread(folder + img)
 
-    for img in imgs:
-        process_image(folder + img, correcting=True)
-        results = process_image(folder + img)
-        print("\n".join(results))
+    #     processor = ImageProcessor(
+    #             resize="constant:1200",
+    #             grayscale=True,
+    #             contrast_clip_limit=2,
+    #             denoise_h=10,
+    #             sharpness_alpha=2,
+    #             sharpness_beta=0.5
+    #         )
+    #     image = processor.preprocess_image(cv_img)
+
+    #     results = read_text_from_image(image, mode="text")
+
+    #     pattern = r'[A-Z]{1,2}[0-9]{3,8}$'
+    #     cins = []
+    #     for result in results :
+    #         split_result = re.split(r'[\n\ ]', result)
+    #         split_result = [res.strip() for res in split_result]
+    #         cins.extend(split_result)
+
+
+    #     print("\n".join(cins))
+    #     cins = [cin for cin in cins if bool(re.match(pattern, cin))]
+
+    #     print("Verdict : ")
+    #     print("\n".join(cins))
+
+    #     cv2.imshow("Processed Image", image)
+    #     cv2.waitKey(0)
+    #     cv2.destroyAllWindows()

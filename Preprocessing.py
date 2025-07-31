@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-from test import adjust_gamma
 
 class ImageProcessor:
     def __init__(self,
@@ -47,9 +46,6 @@ class ImageProcessor:
         if self.grayscale:
             processed = cv2.cvtColor(processed, cv2.COLOR_BGR2GRAY)
 
-
-        self.img_show(processed)
-
         # Contrast enhancement
         processed = self.contrast(processed)
 
@@ -86,7 +82,6 @@ class ImageProcessor:
         clahe = cv2.createCLAHE(clipLimit=self.contrast_clip_limit,
                             tileGridSize=self.contrast_tile_size)
 
-        print(image.shape)
         if len(image.shape) == 3:
             l, a, b = cv2.split(cv2.cvtColor(image, cv2.COLOR_BGR2LAB))
 

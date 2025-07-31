@@ -17,7 +17,6 @@ def fix_borders(image_path):
     orig_height, orig_width = image.shape[:2]
 
 
-    base_colour = image[0][0]
     scale_factor = 1.25
     background_height = int(orig_height * scale_factor)
     background_width = int(orig_width * scale_factor)
@@ -63,14 +62,17 @@ def check_model(orig):
     # Read From Check Zone
 
     processor = ImageProcessor(
-            resize="constant:800",
-            grayscale=True,
-            contrast_clip_limit=2,
-            denoise_h=25,
-            sharpness_alpha=1.5,
-            sharpness_beta=0.5
+        resize="constant:1200",
+        grayscale=True,
+        contrast_clip_limit=2,
+        denoise_h=25,
+        sharpness_alpha=2,
+        sharpness_beta=0.5,
         )
     image = processor.preprocess_image(image)
+
+
+
     cv2.imshow("output", image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
@@ -94,7 +96,7 @@ def check_model(orig):
 
     image = image[y1:y2, x1:x2]
 
-    text_presence, rects = detect_text_presence(image)
+    output, text_presence, rects = detect_text_presence(image)
 
     drawContours(image, rects)
 
@@ -108,7 +110,7 @@ def crop_img(img):
 
     valid, kayn_text = check_model(image)
 
-
+    valid = True
 
     if not valid:
         print("Not a CIN")
@@ -126,10 +128,10 @@ def crop_img(img):
 
 
         processor = ImageProcessor(
-                resize="constant:800",
+                resize="constant:1200",
                 grayscale=True,
                 contrast_clip_limit=2,
-                denoise_h=25,
+                denoise_h=10,
                 sharpness_alpha=2.5,
                 sharpness_beta=0.5
             )
@@ -164,10 +166,10 @@ def crop_img(img):
 
 
         processor = ImageProcessor(
-                resize="constant:800",
+                resize="constant:1200",
                 grayscale=True,
                 contrast_clip_limit=2,
-                denoise_h=25,
+                denoise_h=10,
                 sharpness_alpha=2.5,
                 sharpness_beta=0.5
             )
@@ -185,7 +187,7 @@ def crop_img(img):
 
         orig = image.copy()
         H, W = image.shape[:2]
-        x1, y1, x2, y2 = proportion(2.15/3, 2.7/4, 1.5/2, 1, W, H)
+        x1, y1, x2, y2 = proportion(2/3, 2.7/4, 1.5/2, 1, W, H)
         # x1, y1, x2, y2 = (0, 0, W, H)
         draw_bbox(image, np.array([[x1,y1],[x2,y2]], dtype=np.int32))
 
