@@ -64,8 +64,7 @@ def check_model(orig):
     processor = ImageProcessor(
         resize="constant:1200",
         grayscale=True,
-        contrast_clip_limit=2,
-        denoise_h=25,
+        contrast_clip_limit=4,
         sharpness_alpha=2,
         sharpness_beta=0.5,
         )
@@ -80,8 +79,8 @@ def check_model(orig):
     texts = results[0].split("\n")
 
     valid = False
-    for text in texts:
-        if "CARTE NATIONALE D" in text.strip():
+    cleaned_text = [text.strip() for text in texts if text.strip()]
+    if "CARTE NAT" in " ".join(cleaned_text):
             valid = True
 
 
@@ -110,7 +109,7 @@ def crop_img(img):
 
     valid, kayn_text = check_model(image)
 
-    valid = True
+    # valid = True
 
     if not valid:
         print("Not a CIN")
@@ -195,7 +194,7 @@ def crop_img(img):
     # Read CIN
     orig = orig[y1:y2, x1:x2]
 
-    orig = fix_borders(orig)
+    # orig = fix_borders(orig)
 
     corrected = process_image(orig, correcting=True)
     results = process_image(corrected)

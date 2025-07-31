@@ -5,6 +5,7 @@ from pdf2image import convert_from_path
 import cv2
 from Preprocessing import ImageProcessor
 import numpy as np
+from smart import apply_smart_crop
 import re
 
 
@@ -44,22 +45,18 @@ if __name__ == "__main__":
 
     # =========== Including the 2 methods ===========
 
-    pdf_files = [f"cin{i}.pdf" for i in range(1, 18)]
+    pdf_files = [f"cin{i}.pdf" for i in range(1, 19)]
 
     for pdf in pdf_files:
         print("-"*30 + f" Processing {pdf} " + "-"*30)
         images = convert_from_path(folder + pdf, dpi=300)
-        for i, image in enumerate(images):
+        for image in images:
             cv_img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
-            # read_img(cv_img)
-            # continue
-
             processor = ImageProcessor(
-                    resize="constant:1200",
                     grayscale=True,
-                    contrast_clip_limit=2,
-                    denoise_h=10,
+                    contrast_clip_limit=1,
+                    denoise_h=25,
                     sharpness_alpha=2.5,
                     sharpness_beta=0.5
                 )
@@ -74,7 +71,7 @@ if __name__ == "__main__":
                 split_result = [res.strip() for res in split_result]
                 cins.extend(split_result)
 
-            print("\n".join(cins[-30:]))
+            # print("\n".join(cins[-30:]))
             cins = [cin for cin in cins if bool(re.match(pattern, cin))]
 
             print("Verdict : ")
@@ -82,6 +79,6 @@ if __name__ == "__main__":
             if len(cins) == 0:
                 read_img(cv_img)
 
-            cv2.imshow("Processed Image", image)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+            # cv2.imshow("Processed Image", image)
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()

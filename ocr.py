@@ -82,6 +82,7 @@ def read_text_from_image(image, mode="bbox", ALLOWED_CHARS="ABCDEFGHIJKLMNOPQRST
     reader = easyocr.Reader(lang_list=['fr', 'en'], gpu=True)
     results = reader.readtext(img, detail=1, allowlist=ALLOWED_CHARS)
 
+    results = sorted(results, key=lambda x: x[2], reverse=True)
     borders = [results[0][0][0], results[0][0][2]]
     return borders
 
@@ -121,7 +122,7 @@ def process_image(image, correcting=False):
                 resize="constant:1200",
                 grayscale=True,
                 contrast_clip_limit=2,
-                denoise_h=10,
+                denoise_h=25,
                 sharpness_alpha=1.5,
                 sharpness_beta=0.5
             )
@@ -132,21 +133,23 @@ def process_image(image, correcting=False):
         # Collect Bounding Box
         bbox = read_text_from_image(processed_image, ALLOWED_CHARS=CIN_ALLOWED_CHARS)
 
+        test = processed_image.copy()
+
         x1, y1, x2, y2 = bbox[0][0], bbox[0][1], bbox[1][0], bbox[1][1]
 
         background_height = processed_image.shape[0]
         background_width = processed_image.shape[1]
-        background = np.ones((background_height, background_width), dtype=np.uint8) * 255
-
-
         processed_image = processed_image[y1:y2, x1:x2]
+        background = np.ones((background_height, background_width), dtype=np.uint8) * processed_image[0][0]
+
+
         background[y1:y2, x1:x2] = processed_image
 
         processed_image = background
 
 
 
-        draw_bbox(processed_image.copy(), bbox)
+        draw_bbox(test, bbox)
 
         # Add Letter
         corrected = draw_letter("A", processed_image, bbox)
