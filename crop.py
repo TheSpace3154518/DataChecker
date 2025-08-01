@@ -200,7 +200,7 @@ def crop_img(img):
     results = process_image(corrected)
 
 
-    print("\n".join(texts))
+    # print("\n".join(texts))
 
     # CIN Filtering
     pattern = r'[A-Za-z]{1,2}[^A-Za-z]{3,9}$'

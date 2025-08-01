@@ -3,7 +3,10 @@ from PIL import Image
 
 def apply_smart_crop(image_path, output_size=(224, 224), save_path="output.jpg"):
     sc = SmartCrop()
-    image = Image.open(image_path)
+    if isinstance(image_path, str):
+        image = Image.open(image_path)
+    else:
+        image = image_path
 
     # Compute best crop
     crop = sc.crop(image, output_size[0], output_size[1])

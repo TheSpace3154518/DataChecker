@@ -5,13 +5,13 @@ from pdf2image import convert_from_path
 import cv2
 from Preprocessing import ImageProcessor
 import numpy as np
-from smart import apply_smart_crop
 import re
 
 
-
-# Preprocessing l OCR
-# Preprocessing Carte nationale Checker
+# Combining of the methods
+# Preprocesing
+# Orientation Handling
+# Optimization
 
 
 
