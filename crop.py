@@ -8,29 +8,7 @@ import numpy as np
 
 
 
-def fix_borders(image_path):
 
-    if isinstance(image_path, str):
-        image = cv2.imread(image_path)
-    else:
-        image = image_path
-    orig_height, orig_width = image.shape[:2]
-
-
-    scale_factor = 1.25
-    background_height = int(orig_height * scale_factor)
-    background_width = int(orig_width * scale_factor)
-    background = np.ones((background_height, background_width, 3), dtype=np.uint8) * 255
-
-    x = (background_width - orig_width) // 2
-    y = (background_height - orig_height) // 2
-    background[y:y+orig_height, x:x+orig_width] = image
-
-    cv2.imshow('Result', background)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-    return background
 
 
 
@@ -71,10 +49,10 @@ def check_model(orig):
     image = processor.preprocess_image(image)
 
 
-
     cv2.imshow("output", image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
     results = read_text_from_image(image, mode="text", ALLOWED_CHARS=NAME_ALLOWED_CHARS)
     texts = results[0].split("\n")
 
@@ -178,7 +156,6 @@ def crop_img(img):
         cv2.destroyAllWindows()
 
         results = read_text_from_image(orig, mode="text", ALLOWED_CHARS=NAME_ALLOWED_CHARS)
-        print(results)
         texts = [result.strip() for result in results[0].split("\n") if result.strip()]
         texts = texts[:2]
 

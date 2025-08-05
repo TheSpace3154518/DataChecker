@@ -8,13 +8,6 @@ import numpy as np
 import re
 
 
-# Combining of the methods
-# Preprocesing
-# Orientation Handling
-# Optimization
-
-
-
 def read_img(img):
     stretched = warp_img(img)
     crop_img(stretched)
@@ -45,7 +38,7 @@ if __name__ == "__main__":
 
     # =========== Including the 2 methods ===========
 
-    pdf_files = [f"cin{i}.pdf" for i in range(1, 19)]
+    pdf_files = [f"cin{i}.pdf" for i in range(4, 19)]
 
     for pdf in pdf_files:
         print("-"*30 + f" Processing {pdf} " + "-"*30)

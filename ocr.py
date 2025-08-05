@@ -67,6 +67,32 @@ def check_ocr():
 
 
 # ======================= Main Program ======================= #
+def fix_borders(image_path):
+
+    if isinstance(image_path, str):
+        image = cv2.imread(image_path)
+    else:
+        image = image_path
+    orig_height, orig_width = image.shape[:2]
+
+    base_colour = image_path[0][0]
+    scale_factor = 1.5
+    background_height = int(orig_height * scale_factor)
+    background_width = int(orig_width * scale_factor)
+    background = np.ones((background_height, background_width), dtype=np.uint8) * base_colour
+
+    x = (background_width - orig_width) // 2
+    y = (background_height - orig_height) // 2
+    background[y:y+orig_height, x:x+orig_width] = image
+
+    cv2.imshow('Result', background)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    return background
+
+
+
 def read_text_from_image(image, mode="bbox", ALLOWED_CHARS="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\\ \\'"):
 
     if isinstance(image, str):
@@ -137,19 +163,21 @@ def process_image(image, correcting=False):
 
         x1, y1, x2, y2 = bbox[0][0], bbox[0][1], bbox[1][0], bbox[1][1]
 
-        background_height = processed_image.shape[0]
-        background_width = processed_image.shape[1]
         processed_image = processed_image[y1:y2, x1:x2]
-        background = np.ones((background_height, background_width), dtype=np.uint8) * processed_image[0][0]
+        H, W = processed_image.shape[:2]
+
+        processed_image = fix_borders(processed_image)
+
+        newH, newW = processed_image.shape[:2]
 
 
-        background[y1:y2, x1:x2] = processed_image
+        #resize to new dimensions
+        bbox[0][0] = (newW - W) // 2
+        bbox[0][1] = (newH - H) // 2
+        bbox[1][0] = bbox[0][0] + W
+        bbox[1][1] = bbox[0][1] + H
 
-        processed_image = background
-
-
-
-        draw_bbox(test, bbox)
+        draw_bbox(processed_image.copy(), bbox)
 
         # Add Letter
         corrected = draw_letter("A", processed_image, bbox)
